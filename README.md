@@ -14,9 +14,43 @@ Con el cliente GIT clonar el repositorio desde:
 git clone https://gitlab.com/arkhotech/json_query.git
 ```
 
+Una vez clonado el repositorio, para poder utilizar la librería solo se debe agregar el siguiente import:
+
+```python
+from json_path import JsonQuery
+```
+
+Esta librería posee solo una Clase llamada **JsonQuery** que es la que hace el trabajo de generar las consultas dentro de un archivo JSON.
+La clase necesita 2 parametros:
+
+```python
+query = JsonQuery(query,data)
+```
+
+* **query**: Consulta json (ver sintaxis)
+* **data**:  json o un objeto de tipo 'dict'
+
+Ejemplo completo:
+
+```python
+from json_query import JsonQuery
+
+import json
+data = None
+with open('test.json','r') as input:
+   data = json.load(input)
+
+jsonquery = JsonQuery("/a",data)
+retval = jsonquery.execute()
+
+print(retval)
+```
 
 
-### Sitaxis
+
+
+
+## Sitaxis
 
 La jerarquía de elementos en JSON está sparada por el simbolo "/".
 
@@ -25,29 +59,31 @@ La jerarquía de elementos en JSON está sparada por el simbolo "/".
 
 Donde:
 
-NODE_NAME : NAME[INDICE]*[QUERY]*
+**NODE_NAME** : *NAME*[*INDICE*]\*[*QUERY*]\*
 
-NAME: Secuencia de caracteres "a-z A-Z _"
+**NAME**: Secuencia de caracteres "a-z A-Z _"
 
-INDICE: DIGITO+:DIGITO*
+**INDICE**: *DIGITO*+:*DIGITO*\*
 
-DIGITO: 0-9
+**DIGITO**: 0-9
 
-QUERY: OPERACION [ OPERADOR OPERACION ]*
+**QUERY**: *OPERACION* [ *OPERADOR* *OPERACION* ]\*  (***Los espacios son requeridos***)
 
-OPERACION: OPERANDO COMPARADOR OPERANDO
+**OPERACION**: *OPERANDO* *COMPARADOR* *OPERANDO*
 
-OPERANDO: FIELD | VALUE
+**OPERANDO**: *FIELD* | *VALUE*
 
-FIELD:  @NAME 
+**FIELD**:  @*NAME* (**el @ es literal**) 
 
-VALUE: 'STRING' | INTEGER
+**VALUE**: 'STRING' | INTEGER
 
-COMPARADOR: == | != | > | < | <= | >= | in | notin
+**COMPARADOR**: *== | != | > | < | <= | >= | in | notin*
 
-OPERACION:  and | or
+**OPERACION**:  *and | or*
 
-Ejemplos:
+----
+
+#### Ejemplos:
 
 Tomando el siguiente JSON
 
