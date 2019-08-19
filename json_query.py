@@ -110,7 +110,7 @@ class JsonQuery(object):
 			if op is not None:
 				operations.append(op)
 			else:
-				raise Exception('Sintaxis invalida: token ' + part + ' No se esperaba acá')
+				raise Exception('Sintaxis invalida: token ' + part + ' No se esperaba aca')
 		return operations
 
 
@@ -255,23 +255,13 @@ class JsonQuery(object):
 		logical_operation = None
 		logger.debug('***************************')
 		for oprs in operationProgram:
-			logger.debug(oprs)
 			if logical_operation is None or logical_operation == 'and':
-				logger.debug('and')
 				result = select(oprs['field'],oprs['operation'],oprs['value'],result)
-				logger.debug(result)
 			if logical_operation == 'or':
-				logger.debug('or')
 				rv = select(oprs['field'],oprs['operation'],oprs['value'],dataset)
-
-				logger.debug(rv)
 				result = result + rv
-				logger.debug(result)
+
 			logical_operation = oprs['logical']
-			logger.debug('==========================')
-			# logger.info(oprs)
-			# result = select(oprs['field'],oprs['operation'],oprs['value'],result)
-			# logger.debug(result)
 		logger.debug('***************************')
 		logger.debug(result)
 
@@ -350,24 +340,24 @@ class JsonQuery(object):
 	def execute(self):
 		return self.__processPath(self.query, self.dataset)
 
-def main():
-	#path = "*/kkjk/asdf[@name='marcelo']"
-	#path = "/a/b/c"
-	print()
-	path = sys.argv[1] # "/a/b[1][@valor == 1000]"  #[@valor == 1000 or @valor == 2000 ]->select('name')"
-	data = {}
-	with open(sys.argv[2],'r') as json_file:
-		data = json.load(json_file)
+# def main():
+# 	#path = "*/kkjk/asdf[@name='marcelo']"
+# 	#path = "/a/b/c"
+# 	print()
+# 	path = sys.argv[1] # "/a/b[1][@valor == 1000]"  #[@valor == 1000 or @valor == 2000 ]->select('name')"
+# 	data = {}
+# 	with open(sys.argv[2],'r') as json_file:
+# 		data = json.load(json_file)
 
-	jsonquery = JsonQuery(path,data)
-	retval = jsonquery.execute()	
+# 	jsonquery = JsonQuery(path,data)
+# 	retval = jsonquery.execute()	
 
-	# retval = processPath(path,data)
-	logger.info(retval)
-	return retval
-
-
+# 	# retval = processPath(path,data)
+# 	logger.info(retval)
+# 	return retval
 
 
-if __name__ == "__main__":
-	main()
+
+
+# if __name__ == "__main__":
+# 	main()

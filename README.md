@@ -1,6 +1,20 @@
+<img src="https://www.arkho.tech/wp-content/uploads/2019/06/Logo_Cloudready.jpg" width="400px"/>
+
 # JSON Query
 
-(python)
+## Estado: PROTOTIPO
+#### AUTHOR: Marcelo Silva
+#### Lenguaje:  Python
+
+
+### Instalación
+
+Con el cliente GIT clonar el repositorio desde:
+```bash
+git clone https://gitlab.com/arkhotech/json_query.git
+```
+
+
 
 ### Sitaxis
 
