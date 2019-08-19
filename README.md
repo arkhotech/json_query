@@ -151,3 +151,10 @@ Ej:   /a/b[ @valor == 1000 ]
 
 El ejemplo anterior aplica la consulta sobre cada item de "B" que tenga el campo "valor" igual a 1000. El simbolo @hace referencia a un campo sobre el nodo o el valor de un alista dentro del nodo, en este caso el nodo B
 
+Ej:  /a/b[ @valor >= 1000 and @valor < 3000 ]
+
+Este ejemplo retorna todos los valores dentro del array en el nodo b que tengan como valor en la propiedad "valor", valores mayores o iguales a 1000 y menores a 3000. El resultado debería ser el siguiente:
+
+```javascript
+[ { "name" : "a", "valor" : 1000 },{"name" : "b","valor" :2000}]
+```
