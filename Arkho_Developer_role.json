@@ -1,0 +1,68 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*",
+        "s3:*",
+        "cloudwatch:*",
+        "logs:*",
+        "kms:ListAliases"
+
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+    	"Effect" : "Allow",
+    	"Action": [
+    		"iam:passRole",
+        "iam:listRole"
+    	],
+    	"Resource" : "*"
+
+    },
+    {
+    	"Effect" : "Allow",
+    	"Action" : [
+    		"redshift:*",
+    		"dms:*",
+    		"ec2:*",
+    		"kinesis:*"
+    	],
+    	"Resource" : "*",
+    	"Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+
+    },
+    {
+     "Action": "glue:*",
+     "Effect": "Allow",
+     "Resource": "*",
+     "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+   },
+   {
+     "Action": "tag:GetResources",
+     "Effect": "Allow",
+     "Resource": "*",
+     "Condition": {
+       "StringEquals": {
+         "aws:RequestedRegion": "us-east-1"
+       }
+     }
+   }
+
+  ]
+}
