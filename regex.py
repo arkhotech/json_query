@@ -57,7 +57,9 @@ class ProcessQuery(object):
 	def __expandOperation(self,item):
 		
 		retval = []
-		operations = list(filter(lambda x : x if len(x) > 0 else x, re.compile(r'[==|!=|>|<|>=|<=]').split(item['value'])))
+		operations = list(filter(lambda x : x if len(x) > 0 else x, \
+		 re.compile(r'[==|!=|>|<|>=|<=]').split(item['value'])))
+		
 		retval.append({'type': 'operando ', 'value' : operations[0] })
 		r1 = item['value'].replace(operations[0],'')
 		op = r1.replace(operations[1],'')
