@@ -39,32 +39,35 @@ op_sppliter = re.compile(r'[==|!=|>|<|>=|<=]')
 
 #primer paso es hacer el corte por espacios
 #noramlizar
+"""
 
-def seekParentesis(text,exp):
+"""
+def seekParentesisGroup(text,exp):
 
-	def ppar(text,exp,idx=0):
+	def findParentesisPairs(text,exp,idx=0):
 
-		logger.info('call')
+		logger.debug('call')
 		op = False
 		lst =[]
 		a  = 0
+		inner = None
 		while idx < len(text):
 
 			if text[idx] == '(' and idx not in exp:
 				if op:
-					logger.info('Inside: ' + str(idx))
-					idx, l = ppar(text,exp,idx)
-					lst.append(l)
-					logger.info('Return: ' + str(idx))
+					logger.debug('Inside: ' + str(idx))
+					idx, l = findParentesisPairs(text,exp,idx)
+					lst += l
+					logger.debug('Return: ' + str(idx))
 				else:
-					logger.info('Open: ' + str(idx))
+					logger.debug('Open: ' + str(idx))
 					a = idx
 					op = True
 					idx += 1
 				continue
 
 			if text[idx] ==')' and idx not in exp and op:
-				logger.info('Close: ' + str(idx))
+				logger.debug('Close: ' + str(idx))
 				op = False
 				lst.append((a,idx))
 				idx +=1
@@ -72,51 +75,51 @@ def seekParentesis(text,exp):
 			else:
 				idx += 1
 		return idx, lst
-
+	#Recorre la cadena completa
 	idx = 0 
 	result =[]
 	while idx < len(text):
-		idx, r = ppar(text,exp,idx)
-		result.append(r)
+		idx, r = findParentesisPairs(text,exp,idx)
+		logger.debug(r)
+		result+= r
 
 	return result
 
-def seekBrackets(text,idx):
-	logger.info('call:')
+def identifyFuncParentesis(text):
+	def seekBracketsPair(text,idx):
+		logger.debug('call:')
 
-	op = cl = fx = False
-	exp = []
-	while idx < len(text):
-		if text[idx:idx+3] == 'fn:':
-			logger.info('fn:')
-			if fx:  #si es open, busca nuevamente
-				idx, l = seekBrackets(text,idx)
-				exp += l
-			else:
-				op = fx = True
+		op = cl = fx = False
+		exp = []
+		while idx < len(text):
+			if text[idx:idx+3] == 'fn:':
+				logger.info('fn:')
+				if fx:  #si es open, busca nuevamente
+					idx, l = seekBracketsPair(text,idx)
+					exp += l
+				else:
+					op = fx = True
 
-		if text[idx] == '(' and op:
-			op = False
-			cl = True
-			exp.append(idx)
-			logger.info('open:' + str(idx))
+			if text[idx] == '(' and op:
+				op = False
+				cl = True
+				exp.append(idx)
+				logger.debug('open:' + str(idx))
 
-		if text[idx] == ')' and cl:
-			logger.info('close: ' + str(idx))
-			exp.append(idx)
- 
-			cl = False
-			return idx + 1, exp
-		idx += 1
-	return idx, exp
+			if text[idx] == ')' and cl:
+				logger.debug('close: ' + str(idx))
+				exp.append(idx)
+	 
+				cl = False
+				return idx + 1, exp
+			idx += 1
+		return idx, exp
 
-
-def seekFunctions(text):
 	idx = 0
 	result =[]
 	while idx < len(text):
-		idx , res = seekBrackets(text,idx)
-		print(idx)
+		idx , res = seekBracketsPair(text,idx)
+		logger.debug(idx)
 		result += res
 	return result
 
@@ -276,43 +279,55 @@ test = "(fn:exist(fn:counr(@test)) and fn:count(x))" # and @campo == 'algop') an
 
 query = "fn:exist(@test) and @campo == 'algop' and fn:count(@test)== 1" #or @algo in data and @test!=2 or 2>@valor"
 
-def parseParen(inp, lista,exceptions):
-	i = 0
-	pd = 0
-	pi = 0
-	if len(inp) == 0:
-		return lista
 
-	while i < len(inp):
+test2 = "( a = 2 and ( a or b) ) or ( fn:exist(a) )"
+#        0123456789012345678901234567890123456789012345678901234567890123456789012
+#                 10        20        30        40        50        60        70 
+test3 = "( @f == '5' and ( @b == 1 or @b ==2) )"
 
-		if inp[i] == '(' and i not in exceptions:
-			logger.info('parentesis: ' +str(i))
-			# pd = i
-			# break
-		i += 1
 
-	# #Parenteceis derecho
-	# i = len(inp)-1
-	# while i >= 0:
-	# 	if inp[i] == ')' and i not in exceptions:
-	# 		pi = i
-	# 		break
-	# 	i -= 1
+ 
+def phase0(text):
 
-	# if pi == pd:
-	# 	lista.append(inp)
-	# else:
-	# 	lista.append(inp[0:pd])
+	ex = identifyFuncParentesis(text)
+	logger.info(ex)
+	groups = seekParentesisGroup(text,ex) #0-8 , 6-7, 9-10
 
-	# parseParen(inp[pd + 1 :pi], lista,exceptions)
+	#clasificar los grupos, revisar los iner barcked
+
+	groups.sort(key = lambda x : x[0])
+	logger.info(groups)
+
+	#CRear estrucutra
+	#                     01234567890123456789012345
+	i = 1
+	cursor = 0
+	lista = []
+	for group in groups:
+		print(group)
+		start,end = group
+	
+		conj = text[cursor:start]
+		if conj != '':
+			lista.append(conj)
+		print('group' +str(i) +':' + text[start+1:end])
+		lista.append(text[start+1:end])
+		cursor = end + 1
+		i+= 1
 	return lista
 
 
+l =  [ (0,10), (5,7) , (11,15) ]
 
-ex = [23, 24]
+while len(l) > 0:
+	logger.info(l)
+	l.pop()
 
 
+x = "(op and ( op2 or op3 )) and ( op3 or op4 )"  # -->  grupo1 [ [ op , and , [ op2, or, op3 ] , and , [ op3 , or , op4] ]  
 
-print(seekParentesis('(test1(bbbbbb) and fn:t())',ex)) #0-8 , 6-7, 9-10
-#                     01234567890123456789012345
 
+def 
+
+
+#logger.info(phase0(test3))
