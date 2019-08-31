@@ -1,0 +1,22 @@
+[   
+	{
+		"id": "7002",
+		"name": "Custard",
+		"addcost": 0
+	},
+	{
+		"id": "7003",
+		"name": "Whipped Cream",
+		"addcost": 0
+	},
+	{
+		"id": "7004",
+		"name": "Strawberry Jelly",
+		"addcost": 0
+	},
+	{
+		"id": "7005",
+		"name": "Rasberry Jelly",
+		"addcost": 0
+	}
+]

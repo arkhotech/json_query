@@ -1,16 +1,19 @@
 import re
 import logging
 import pprint
+import json
+import os
+import sys
 
 logging.basicConfig(level=logging.INFO)
-
+pp = pprint.PrettyPrinter(depth=6)
 """
 
 Operando ->  operacion | funcion 
 
 
 """
-field = re.compile(r'[@\w!=<>\'"]')
+field = re.compile(r'[@\w!=<>\':\*"]')
 
 _log = re.compile(r'^(and)|^(or)')
 
@@ -187,58 +190,257 @@ def groups(text):
 
 	return groups
 
+def createProgram(query):
+	grps = groups(query)
+	logger = logging.getLogger("test")
+	group_plan = {}
+	newplan = []
+	
+
+	for key,value in grps.items():
+
+		key = key.replace('group','')
+		idgrp = key.split('-')[0]
+		level = key.split('-')[1]
+		groupname = 'group' + str(idgrp)
+		print(key)
+		print(idgrp)
+		
+		plan = check(''.join(value))
+
+		if groupname in group_plan:
+			logger.info(level)
+			group = group_plan[groupname]
+			logger.info('level: ' + str(level))
+			group.append({ 'suboperacion' : plan} )
+		else:
+			group_plan.update ({ groupname : plan })
+
+	return group_plan
+
+
+def nodeParse(text):
+
+	logger = logging.getLogger("nodeParse")
+	logger.info(text)
+	nname = re.compile(r'\w')
+	nidx = re.compile(r'\d')
+	states = States(['name','query1','query2'])
+	state = next(states)
+	idx = 0
+
+	select = None
+	if text.find('{') >= 0:
+		select = text[text.find('{')+1:text.find('}')]		
+		select = select.replace('\'','').replace('"','')
+		select = select.split(',')
+		text = text[:text.find('{')+1]
+
+	node = { 'path' : text , 'idx' : None, 'query': '' , 'select': select }
+	path = query1 = query2 = ''
+	while idx < len(text):
+
+		if nname.match(text[idx]) and state == 'name':	
+			path = path + text[idx]
+			idx+=1
+			continue
+
+		elif text[idx] == '[' and state == 'name': # es un array (excepcion)
+			state = next(states)
+			idx += 1
+
+		if text[idx] == ']':
+			idx+=1
+			continue
+		#cierre	
+		if state == 'name':
+			state = next(states)
+
+		if state == 'query1':
+			query1 += text[idx]
+			idx+=1
+			continue
+
+		if state == 'query2':
+			query2 += text[idx]
+			idx+=1
+			continue
+
+		idx+=1
+	node['path'] = path
+	logger.info('query')
+	logger.info(query1)
+	if query1 != '' and nidx.match(query1): #podría ser indice o query
+		node['idx'] = int(query1)
+	else:
+		if query1 != '':
+			node['query'] = query1
+
+	if query2 != '':
+		node['query'] = query2
+
+	return node
+
+
+def executeQuery(query,dataset,select):
+	logger = logging.getLogger("executeQuery")
+	logger.info('ejecutando query')
+	logger.debug(select)
+	
+	def fileterField(dataset,select):
+		if select is None or select == '' or select == '*' :
+			return dataset
+		res = {}
+		[ res.update({ k : v }) for k,v in dataset.items() if k in select]
+		return res
+
+
+	def execOperaciones(oprs,data):
+
+		result = []  
+		op_log = None
+		subset = data.copy()
+		for oper in oprs:  # cada operacion es un conjunto de dataset
+			logger.debug('Operacion: ' + str(oper))
+
+			if op_log == 'and':
+				logger.debug('AND')
+				logger.debug(len(result))
+				subset = result.copy() #if len(result)>0 else subset
+				result = []
+			elif op_log == 'or':
+				logger.debug('OR')
+				subset = data.copy()
+
+			op1 = oper['operando1']
+			op2 = oper['operando2']
+			comp = oper['operador']
+			op_log = oper['logical'] if 'logical' in oper else None
+			
+			#select
+			for dataitem in subset:  
+				logger.debug('loop') 
+				fieldname = op1[1:] if op1[0] == '@' else op2[1:]
+				fieldvalue = dataitem[fieldname]
+				logger.debug(fieldvalue)
+				
+				if isinstance(fieldvalue,list):
+					logger.debug('--------->>>>>')
+					value = op2.replace('"','').replace('\'','')
+					logger.debug(value)
+					logger.debug(value in fieldvalue)
+					logger.debug(comp)
+					if comp == '==' and value in fieldvalue:
+						logger.debug('IN')
+						result.append(fileterField(dataitem,select))
+					elif comp == '!=' and value not in fieldvalue:
+						logger.debug('NOT IN')
+						result.append(fileterField(dataitem,select))
+				elif isinstance(fieldvalue,str):
+					value = op2
+					o = 'fieldvalue' + comp + value
+					logger.debug(o)
+					if eval(o,{'fieldvalue' : fieldvalue}):
+						logger.debug('True')
+						result.append(fileterField(dataitem,select))
+			
+		return result
+
+		
+
+	#Por cada grupo
+	for label , item in query.items():
+		logger.info(label)
+		logger.info(item)
+		logger.debug('---------------')
+		r = execOperaciones(item,dataset)
+		return r
+		# pp.pprint(r)
+		# quit()
+
+
+
+def seekPath(text,query):
+
+	logger = logging.getLogger("seekPath")
+
+	if len(text) == 0:
+		return None
+
+	root = True if query[0] == '/' else False
+
+	#cortar
+	nodes = query.split('/')
+	result = text.copy()
+	node = []
+	for selectNode in filter(None ,nodes): #text
+		logger.debug('Nodo seleccionado: ' + selectNode)
+		nodeQuery = nodeParse(selectNode) #parsea la query
+		#----------- 
+		logger.debug(nodeQuery)
+		logger.debug('----->')
+
+		if nodeQuery['idx'] is not None \
+		   and  nodeQuery['query']=='' \
+		   and nodeQuery['path'] == '' \
+		   and isinstance(result,list):  #TRaeer el nodo
+			result = result[nodeQuery['idx']]
+			continue
+		# si el path es una lista y no tiene query, entonces error
+		if isinstance(result,list) and \
+		    nodeQuery['query'] == '' and \
+		    nodeQuery['idx'] is None:
+
+			logger.error('Es un lista')
+			logger.error(nodeQuery)
+			logger.error(result)
+			raise Exception('El nodo ' + selectNode + ' es una lista')
+		
+		#Excepciones
+		if nodeQuery['path'] not in result:
+			return {}
+		node = result[nodeQuery['path']]   #se trae el nodo
+		logger.debug(type(node))
+		
+		if nodeQuery['query'] !='':
+			logger.debug('Query')
+			select = nodeQuery['select']
+			r = createProgram(nodeQuery['query'])
+			logger.info(r)
+			node = executeQuery(r,node, select )
+
+		if nodeQuery['idx'] is not None:  #TRaeer el nodo
+			node = node[nodeQuery['idx']]
+		result = node
+
+		
+	return result
+
+
+def jsonquery(filename, path, _print = True):
+	data = ''
+	with open(filename,'r') as f:
+		data = json.load(f)
+	res = seekPath(data,path)
+	if _print:
+		pp.pprint(res)
+
 
 
 test = "(@field!='algo' and @field2<>7) or (@field3<>5 and ( @field4!=10 or @field5 != 0  or ( a==b and c==d )))"#    ) and (fn:count(test)"
 #       01234567890123456789012345678
 test2 = "@field!='algo'"
 
-grps = groups(test)
+#path = "/Statement[@Effect=='Allow' or @Action=='iam:passRole' or @Action=='s3:*']{'Action'}"  #{'Effect','Resource'}
 
-print(grps)
+#path2 = '/items'
 
-logger = logging.getLogger("test")
-
-group_plan = {}
-
-newplan = []
+file = sys.argv[1]
+path = sys.argv[2] 
 
 
-pp = pprint.PrettyPrinter(depth=6)
 
-for key,value in grps.items():
-
-	key = key.replace('group','')
-	idgrp = key.split('-')[0]
-	level = key.split('-')[1]
-	groupname = 'group' + str(idgrp)
-	print(key)
-	print(idgrp)
-	
-	plan = check(''.join(value))
-
-	if groupname in group_plan:
-		logger.info(level)
-		group = group_plan[groupname]
-		# for i in range(0,int(level)):
-		# 	logger.info('------------')
-		# 	pp.pprint(group)
-		# 	if 'suboperacion' in  group:
-		# 		logger.info('get')
-		# 		group = group['suboperacion']
-		# 	else:
-		# 		logger.info('put')
-		# 		group.append({ 'suboperacion' : plan} )
-		
-		logger.info('level: ' + str(level))
-		group.append({ 'suboperacion' : plan} )
-	else:
-		group_plan.update ({ groupname : plan })
-
-
-pp.pprint(group_plan)
-
-
+jsonquery(file,path)
 
 
 
