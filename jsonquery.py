@@ -196,7 +196,6 @@ def createProgram(query):
 	
 
 	for key,value in grps.items():
-
 		key = key.replace('group','')
 		idgrp = key.split('-')[0]
 		level = key.split('-')[1]
@@ -346,8 +345,6 @@ def executeQuery(query,dataset,select):
 			
 		return result
 
-		
-
 	#Por cada grupo
 	for label , item in query.items():
 		logger.debug(label)
@@ -356,7 +353,6 @@ def executeQuery(query,dataset,select):
 		r = execOperaciones(item,dataset)
 		return r
 
-level = 0
 
 def findnode(dataset,nodename):
 	logger = logging.getLogger("findnode")
@@ -449,9 +445,16 @@ def seekPath(text,query):
 				node = temp
 			elif isinstance(node,dict):
 				node =[ { k : v } for k,v in node.items() if k in select ]
-
-		if nodeQuery['idx'] is not None:  #TRaeer el nodo
-			node = node[nodeQuery['idx']]
+		try:
+			if nodeQuery['idx'] is not None:  #TRaeer el nodo
+				node = node[nodeQuery['idx']]
+		except (IndexError,KeyError) as e:
+			if isinstance(node,list):
+				logger.error('Index ' + str(nodeQuery['idx']) + ' does not exitis in dataset')
+			else:
+				logger.error('The node is not a List or Array, you can not use idex here')
+				logger.error(node.keys())
+			quit()
 		result = node
 
 		
