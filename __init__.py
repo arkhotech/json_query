@@ -1,1 +1,1 @@
-from .json_query import *
+from .jsonquery import *
