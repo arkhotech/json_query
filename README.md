@@ -17,7 +17,7 @@ git clone https://gitlab.com/arkhotech/json_query.git
 Una vez clonado el repositorio, para poder utilizar la librería solo se debe agregar el siguiente import:
 
 ```python
-from json_path import JsonQuery
+from jsonquery import JsonQuery
 ```
 
 Esta librería posee solo una Clase llamada **JsonQuery** que es la que hace el trabajo de generar las consultas dentro de un archivo JSON.
@@ -46,13 +46,185 @@ retval = jsonquery.execute()
 print(retval)
 ```
 
+Como función:
 
+```python
 
+from jsonquery import jsonquery
+
+jsonquery('archivo.json','/item[0]/items[@id=='1001']
+```
 
 
 ## Sitaxis
 
-La jerarquía de elementos en JSON está sparada por el simbolo "/".
+La sintaxis de las consultas se dividen en 3 partes:
+
+* path
+* select
+* query
+
+####PATH
+
+El path repsenta los niveles en forma dentro de un archivo Json . Cada nivel es separado por un '/'. Ej:
+
+```json
+{
+	"nivel1": {
+		"nivel2": {
+			"nivel3": "hola"
+		}
+	}
+}
+```
+Una consulta como:  /nivel1/nivel2/nivel3, debería retornar "hola".
+
+###Arrays
+
+Si el archivo JSON contiene un array, el path puede especificar un indice de item dentro del JSON, ej:
+
+> **NOTA:** Lo números para indice tienen base "0".
+> **NOTA2:** La ejecución de la consulta, retorna una lista con resultados, independiente que sea un solo item.
+
+Tomando como ejemplo el siguiente JSON:
+
+```json
+
+{
+   "lista":
+        { "items": [
+        	{ "item": 1},
+        	{ "item": 3},
+        	{ "item": 4},
+        	.....
+        	{ "item": N},
+        ]
+}
+```
+
+| query | descrición | resultado |
+|-------|------------|-----------|
+| /items/items[15] | Este recupera el item número 16 | [{ "item": 16}] |
+| /items/items[0]/item | Recupera el valor del item 1 | [ 1 ] |
+| /items/items[n+1] | Arroja un error de indice fuera de rango ||
+
+Nodo Raíz
+
+Para especificar el nodeo raíz en una consulta, se debe especificar el '/' al principio. Si no va un '/' al principio, se busca todas las concidencias en cualquier parte del JSON. Ej.
+
+Para el mismo ejemplo anterior, una consulta del tipo:  'item':
+
+```json
+[
+	{ "item": 1},
+	{ "item": 3},
+	....
+	{ "item": N}
+]
+```
+
+###select
+
+Se puede seleccionar (por ahora) los campos de un item JSON que se quieren retonar, agreando lo nombres de los campos que se requieren entre corchetes:  **{ 'FIELD-1', 'FIELD-2', ... 'FIELD-N' }**
+
+Ej: Para el siguiente JSON:
+
+```json
+{ 
+"items":{
+	[   
+		{
+			"id": "7002",
+			"name": "Custard",
+			"addcost": 0
+		},
+		{
+			"id": "7003",
+			"name": "Whipped Cream",
+			"addcost": 0
+		},
+		{
+			"id": "7004",
+			"name": "Strawberry Jelly",
+			"addcost": 0
+		},
+		{
+			"id": "7005",
+			"name": "Rasberry Jelly",
+			"addcost": 0
+		}
+	]}
+}
+```
+Si ejecutamos:  **/items[0]{ 'id','name'}**
+
+El resultado sería:
+
+```json
+{
+	"id": "7003",
+	"name": "Whipped Cream"
+}
+```
+
+### Query
+
+Uno de los selectores mas importantes es la Query. Esta actúa como un filtro sobre un item dentro de un dataset (json).  Donde se aplica el filtro, solo se seleccionan los subnodos que cumplna con la condición:
+
+Sintaxis
+
+```python
+[ operación { operador operacion } { operador operacion } ]
+
+operación:  field comparador valor
+
+```
+#### Field
+
+representa el nombre de un campo dentro de un Json. El nombre debe comenzar con un simbolo '@'. Por ejemplo:  
+
+@id
+
+Los comparadores peremitidos de una operación son:
+
+| Comparador| Descripción|
+|-----------|------------|
+| == | Este es el comparador de igualdad. En el caso de comparar contra un Array, actua como 'IN'|
+| != | Distinto o no igual a. Sobre un array actua como un 'NOT IN'|
+| > , <, <= , >= | Comparadores de desigualdad. Solo aplica con  valores integer, float.
+
+
+#### Operación
+
+Una operación realiza una comparación entre un Field y un valor  cualquiera de tipo: str, int, o Boolean. Ej:
+
+* @id=='1001'
+* @valor > 5
+
+#### Operador
+
+Operador se refiere a una operación logica entre operaciones y los valores permtidos por ahora son:  and y or.
+
+el operador And es una intersección de valores de 2 operaciones
+
+#### Orden de precedencia
+
+Las operaciones se realizan desde deracha a izquierda.
+
+```
+[ @id=='1001' and @type=='té' or @type=='cafe']
+```
+
+En el caso anterior el orden de ejecución es:
+
+(@id=='1001' and @type=='té' ) or @type=='cafe'
+
+La interscciín de las operaciones @id=='1001' y @type=='té'.  El resultado es la únion de los valores de la primera operación con el resultado de la tercera operación (a excepción de los valores repetidos).
+
+
+
+---
+
 
 
 **[/NODE_NAME]+**
@@ -105,11 +277,11 @@ Se pueden ejecutar los siguientes consultas:
 ```
 Consulta:   /a/b
 
-Return:     { "valor": 1000 }
+Return:     [{ "valor": 1000 }]
 
 Consulta:   /a  
 
-Return:    { "b": { "valor": 1000 }}
+Return:    [{ "b": { "valor": 1000 }}]
 
 Consulta:  /a/b/valor
 
@@ -129,7 +301,7 @@ Consultas:
 ```
 Consulta:  /a/b[0]
 
-Return:    { "name" : "a", "valor" : 1000 }
+Return:    [{ "name" : "a", "valor" : 1000 }]
 
 Consulta: /a/b[2]
 

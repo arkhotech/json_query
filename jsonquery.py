@@ -5,7 +5,7 @@ import json
 import os
 import sys
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=30)
 pp = pprint.PrettyPrinter(depth=6)
 """
 
@@ -61,12 +61,12 @@ def check(text):
 	logger.info('.' + text + '.')
 	state1 = States(['operando','comparador','operando','logical','close'])
 	state = next(state1)
-	logger.info(state)
+	logger.debug(state)
 	idopracion = 1
 	while True:
 		
 		if state == 'close' or len(text) == idx:
-			logger.info('close')
+			logger.debug('close')
 			operacion.update({ 'operando2': operando })
 			operaciones.append(  operacion.copy())
 			operacion.clear()
@@ -86,7 +86,7 @@ def check(text):
 
 		# and  /  or
 		if state == 'logical':
-			logger.info(text[idx:idx+3])
+			logger.debug(text[idx:idx+3])
 			if _log.match(text[idx:idx+3]):
 				operacion.update({ 'logical' : text[idx:idx+3]})				
 				idx += 3
@@ -106,10 +106,8 @@ def check(text):
 			operando = ''
 			#validar el operador
 			operacion.update({ 'operador' : text[idx:idx+2]})
-			#logger.debug('old:' + str(idx))
 			idx = ffspace(text,idx + 2)
-			#logger.debug('new:' + str(idx))
-			logger.info(text[idx])
+			logger.debug(text[idx])
 			state = next(state1)
 			
 		
@@ -209,9 +207,9 @@ def createProgram(query):
 		plan = check(''.join(value))
 
 		if groupname in group_plan:
-			logger.info(level)
+			logger.debug(level)
 			group = group_plan[groupname]
-			logger.info('level: ' + str(level))
+			logger.debug('level: ' + str(level))
 			group.append({ 'suboperacion' : plan} )
 		else:
 			group_plan.update ({ groupname : plan })
@@ -234,8 +232,10 @@ def nodeParse(text):
 		select = text[text.find('{')+1:text.find('}')]		
 		select = select.replace('\'','').replace('"','')
 		select = select.split(',')
-		text = text[:text.find('{')+1]
+		text = text[:text.find('{')]
 
+	logger.debug(text)
+	logger.debug('====================================')
 	node = { 'path' : text , 'idx' : None, 'query': '' , 'select': select }
 	path = query1 = query2 = ''
 	while idx < len(text):
@@ -253,7 +253,7 @@ def nodeParse(text):
 			idx+=1
 			continue
 		#cierre	
-		if state == 'name':
+		if state == 'name' :
 			state = next(states)
 
 		if state == 'query1':
@@ -268,8 +268,8 @@ def nodeParse(text):
 
 		idx+=1
 	node['path'] = path
-	logger.info('query')
-	logger.info(query1)
+	logger.debug('query')
+	logger.debug(query1)
 	if query1 != '' and nidx.match(query1): #podría ser indice o query
 		node['idx'] = int(query1)
 	else:
@@ -350,41 +350,61 @@ def executeQuery(query,dataset,select):
 
 	#Por cada grupo
 	for label , item in query.items():
-		logger.info(label)
-		logger.info(item)
+		logger.debug(label)
+		logger.debug(item)
 		logger.debug('---------------')
 		r = execOperaciones(item,dataset)
 		return r
-		# pp.pprint(r)
-		# quit()
 
+level = 0
 
-	
+def findnode(dataset,nodename):
+	logger = logging.getLogger("findnode")
+	result = []
 
+	if isinstance(dataset,dict):
+		logger.debug('---------')
+		for key,value in dataset.items():
+			if key == nodename:
+				logger.info('Check: ' + key)
+				result += [ value ]
+				logger.debug(result)
+				return result
+			else:
+				logger.info('sub')
+				result += findnode(value,nodename)
+		logger.debug(result)
+		logger.debug('---------')
 
+	elif isinstance(dataset,list):
+		logger.debug('list')
+		for item in dataset:
+			result += findnode(item,nodename)
+	else:
+		#logger.warning(type(dataset))
+		return result
+		#raise Exception('El dataset debe ser list o un dict')
+	return result
 
 def seekPath(text,query):
 
 	logger = logging.getLogger("seekPath")
-	logger.info('Procesando query')
+
 	if len(text) == 0:
 		return None
 
 	root = True if query[0] == '/' else False
 
-	#cortar
 	nodes = query.split('/')
+
 	if not root:
-		logger.debug('no es root')
 		result = findnode(text,nodes[0])
 	else:
 		result = text.copy()
 
+	logger.debug(len(result))
 
-	logger.debug(result)
-	quit()
-
-
+	#cortar
 	node = []
 	for selectNode in filter(None ,nodes): #text
 		logger.debug('Nodo seleccionado: ' + selectNode)
@@ -419,8 +439,16 @@ def seekPath(text,query):
 			logger.debug('Query')
 			select = nodeQuery['select']
 			r = createProgram(nodeQuery['query'])
-			logger.info(r)
+			logger.debug(r)
 			node = executeQuery(r,node, select )
+		elif nodeQuery['select'] is not None:
+			select = nodeQuery['select']
+			if isinstance(node,list):
+				temp = []
+				list(map( lambda item :  [ temp.append({ k: v }) for k,v in item.items() if k in select ], node ))
+				node = temp
+			elif isinstance(node,dict):
+				node =[ { k : v } for k,v in node.items() if k in select ]
 
 		if nodeQuery['idx'] is not None:  #TRaeer el nodo
 			node = node[nodeQuery['idx']]
@@ -437,19 +465,28 @@ def jsonquery(filename, path, _print = True):
 	res = seekPath(data,path)
 	if _print:
 		pp.pprint(res)
+	return res
 
 
+class JsonQuery(object):
 
-test = "(@field!='algo' and @field2<>7) or (@field3<>5 and ( @field4!=10 or @field5 != 0  or ( a==b and c==d )))"#    ) and (fn:count(test)"
-#       01234567890123456789012345678
-test2 = "@field!='algo'"
+	def __init__(self,query,dataset):
+		self._query = query
+		self._dataset = dataset
 
-#path = "/Statement[@Effect=='Allow' or @Action=='iam:passRole' or @Action=='s3:*']{'Action'}"  #{'Effect','Resource'}
+	def execute():
+		res = seekPath(self._dataset,self._query)
+		return res
 
-#path2 = '/items'
+
+if len(sys.argv) < 3:
+	raise Exception('Usage: ')
 
 file = sys.argv[1]
 path = sys.argv[2] 
+
+
+
 
 jsonquery(file,path)
 
