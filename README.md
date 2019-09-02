@@ -79,17 +79,18 @@ El path repsenta los niveles en forma dentro de un archivo Json . Cada nivel es 
 ```
 Una consulta como:  /nivel1/nivel2/nivel3, debería retornar "hola".
 
-###Arrays
+## Arrays
 
 Si el archivo JSON contiene un array, el path puede especificar un indice de item dentro del JSON, ej:
 
 > **NOTA:** Lo números para indice tienen base "0".
-> **NOTA2:** La ejecución de la consulta, retorna una lista con resultados, independiente que sea un solo item.
+> 
+> **NOTA2:** La ejecución de la consulta, retorna una lista con resultados, si el resultado es un valor de un item en JSON. Si es una array o el resultado retorna mas de un valor, se retornará un List. 
+
 
 Tomando como ejemplo el siguiente JSON:
 
 ```json
-
 {
    "lista":
         { "items": [
@@ -104,11 +105,11 @@ Tomando como ejemplo el siguiente JSON:
 
 | query | descrición | resultado |
 |-------|------------|-----------|
-| /items/items[15] | Este recupera el item número 16 | [{ "item": 16}] |
-| /items/items[0]/item | Recupera el valor del item 1 | [ 1 ] |
-| /items/items[n+1] | Arroja un error de indice fuera de rango ||
+| /items/items[15] | Este recupera el item número 16 | **[{ "item": 16}]** |
+| /items/items[0]/item | Recupera el valor del item 1 |  **1** |
+| /items/items[n+1] | Arroja un error de indice fuera de rango |**Error**|
 
-Nodo Raíz
+#### Nodo Raíz
 
 Para especificar el nodeo raíz en una consulta, se debe especificar el '/' al principio. Si no va un '/' al principio, se busca todas las concidencias en cualquier parte del JSON. Ej.
 
@@ -123,7 +124,7 @@ Para el mismo ejemplo anterior, una consulta del tipo:  'item':
 ]
 ```
 
-###select
+## select
 
 Se puede seleccionar (por ahora) los campos de un item JSON que se quieren retonar, agreando lo nombres de los campos que se requieren entre corchetes:  **{ 'FIELD-1', 'FIELD-2', ... 'FIELD-N' }**
 
@@ -156,11 +157,14 @@ Ej: Para el siguiente JSON:
 	]}
 }
 ```
-Si ejecutamos:  **/items[0]{ 'id','name'}**
 
+Si ejecutamos:  **/items[0]{ 'id','name'}**
 El resultado sería:
 
-```json
+```python
+>>> from jsonquery import *
+>>> jsonquery('archivo.json','items[0]{ 'id','name'}')
+
 {
 	"id": "7003",
 	"name": "Whipped Cream"
@@ -171,19 +175,53 @@ El resultado sería:
 
 Uno de los selectores mas importantes es la Query. Esta actúa como un filtro sobre un item dentro de un dataset (json).  Donde se aplica el filtro, solo se seleccionan los subnodos que cumplna con la condición:
 
-Sintaxis
+### Sintaxis
 
 ```python
-[ operación { operador operacion } { operador operacion } ]
+[ OPERACION { OPERADOR OPERACION } { OPERADOR OPERACION } ]
 
 operación:  field comparador valor
+```
+Donde:
+* **OPERCION**:  Es una operacion bunaria con 2 operandos mas un comparador.
+* **OPERADOR**: es una operación lógica que puede ser "and" u "or".
+
+Ejemplo
+
+```python
+>>> from jsonquery import *
+>>> path = '/item/items[@valor >= 1000 and @valor <= 10000]'
+>>> 
+>>> jsonquery('archivo.json',path)
 
 ```
+
+#### Operandos
+
+Los operandos son valores que se pueden comparar y sirven de filtro para la consulta. Los operandos pueden ser valores interos, float, string o de tipo "Field". Ej de operandos:
+
+```
+@id == 1000
+```
+
+Los operandos en el caso anterior son @id y 1000. Mientras que el símbolo "==" (ver comparadores es el comparador.
+
 #### Field
 
 representa el nombre de un campo dentro de un Json. El nombre debe comenzar con un simbolo '@'. Por ejemplo:  
 
-@id
+```
+# @id
+# Este valor hace referencia al campo id del siguiente JSON:
+
+{
+	"id": 1000,
+	"comantario": "Test"
+}
+
+```
+
+#### Comparadores
 
 Los comparadores peremitidos de una operación son:
 
@@ -193,19 +231,41 @@ Los comparadores peremitidos de una operación son:
 | != | Distinto o no igual a. Sobre un array actua como un 'NOT IN'|
 | > , <, <= , >= | Comparadores de desigualdad. Solo aplica con  valores integer, float.
 
+#### Comparar con array
 
-#### Operación
+Cuando el valor se compara con un array, entonces la operación "==" o "!=" actúan como "in" y "not in" respectivamente. Ej.
 
-Una operación realiza una comparación entre un Field y un valor  cualquiera de tipo: str, int, o Boolean. Ej:
+Para el siguiente JSON:
 
-* @id=='1001'
-* @valor > 5
+```json
+{
+	"valor" : [2,3,4,5,6],
+	"valor" : [5,6,7]
+}
+```
 
-#### Operador
+La sigiente operación:
 
-Operador se refiere a una operación logica entre operaciones y los valores permtidos por ahora son:  and y or.
+```python
+>>> from jsonquery import *
+>>> 
+>>> jsonquery('archivo.json','/[@valor==5]')
+>>> 
+{ "valor": [2,3,4,5,6] }
 
-el operador And es una intersección de valores de 2 operaciones
+```
+En el vaso anterior se selecciona el primer array por que contiene el número 5.  En caso contrario:
+
+```python 
+>>> from jsonquery import *
+>>> 
+>>> jsonquery('archivo.json','/[@valor!=5]')
+>>> 
+{ }
+
+```
+En el caso anterior, retorna vacio ya que el 5 esta presente en ambos items.
+
 
 #### Orden de precedencia
 
@@ -220,6 +280,7 @@ En el caso anterior el orden de ejecución es:
 (@id=='1001' and @type=='té' ) or @type=='cafe'
 
 La interscciín de las operaciones @id=='1001' y @type=='té'.  El resultado es la únion de los valores de la primera operación con el resultado de la tercera operación (a excepción de los valores repetidos).
+
 
 
 
