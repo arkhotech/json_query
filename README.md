@@ -110,9 +110,9 @@ Using the following JSON:
 
 ### Root Node
 
-On a query, the root node is representated with the slash symbol on the begining. If you don't especified the slash on the begin of the path query, the seek could any node on the three that match with the name.  
+On a query, the root node is representated with the slash symbol on the begining. If you don't especified the slash on the begin of the path query, the seek could select any node on the three wich match with the node name specified in the path query.  
 
-Using the json above if we execute the following query:  
+Using the json above if we execute just the following query:  
 
 'item'
 

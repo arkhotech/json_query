@@ -269,7 +269,7 @@ def nodeParse(text):
 	node['path'] = path
 	logger.debug('query')
 	logger.debug(query1)
-	if query1 != '' and nidx.match(query1): #podría ser indice o query
+	if query1 != '' and nidx.match(query1): #podria ser indice o query
 		node['idx'] = int(query1)
 	else:
 		if query1 != '':
@@ -482,16 +482,6 @@ class JsonQuery(object):
 		return res
 
 
-if len(sys.argv) < 3:
-	raise Exception('Usage: ')
-
-file = sys.argv[1]
-path = sys.argv[2] 
-
-
-
-
-jsonquery(file,path)
 
 
 
