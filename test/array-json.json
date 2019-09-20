@@ -18,5 +18,11 @@
 		"id": "7005",
 		"name": "Rasberry Jelly",
 		"addcost": 0
-	}
+	},
+	{
+                "id": "7005",
+                "name": "Rasberry Jelly",
+                "addcost": 0
+        }
+        
 ]

@@ -2,10 +2,8 @@ import re
 import logging
 import pprint
 import json
-import os
-import sys
 
-logging.basicConfig(level=30)
+logging.basicConfig(level=logging.ERROR)
 pp = pprint.PrettyPrinter(depth=6)
 """
 
@@ -13,6 +11,9 @@ Operando ->  operacion | funcion
 
 
 """
+inputval = re.compile(r'(/\w+)*(/*\[\s*(\d+)(:{1}\d+)*\s*\])*(\[\s*[@\w\!=<>\'"]+\s*\])*')
+
+
 field = re.compile(r'[@\w!=<>\':\*"]')
 
 _log = re.compile(r'^(and)|^(or)')
@@ -216,84 +217,59 @@ def createProgram(query):
 	return group_plan
 
 
+def extractIndexs(text):
+
+	name= text[0:text.find('[')] if text.find('[')>=0 else text
+
+	q1 = text[ text.find('[') +1 : text.find(']') ] if text.find('[') >= 0 else ''
+	idxpattern = re.compile(r'\d+:{0,1}\d*')
+	newidx = None
+	if idxpattern.match(q1):
+		i = q1.split(':') 
+		newidx = slice(int(i[0]),int(i[1])) if len(i) > 1 else int(i[0])
+		offset = text.find(']') + 1
+	else:
+		offset = 0
+
+	
+	q2 = text[text.find('[',offset) + 1: text.find(']',offset)] \
+	     if text.find('[',offset) >= 0 else ''
+	select = text[ text.find('{')+1:text.find('}')].split(',') if text.find('{') >= 0 else None
+	if select is not None:
+		select = list(map(lambda item: item.replace('"','').replace('\'',''),select))
+	return name,newidx,q2,select
+
+
+
 def nodeParse(text):
 
 	logger = logging.getLogger("nodeParse")
 	logger.info(text)
-	nname = re.compile(r'\w')
-	nidx = re.compile(r'\d')
-	states = States(['name','query1','query2'])
-	state = next(states)
-	idx = 0
-
-	select = None
-	if text.find('{') >= 0:
-		select = text[text.find('{')+1:text.find('}')]		
-		select = select.replace('\'','').replace('"','')
-		select = select.split(',')
-		text = text[:text.find('{')]
-
-	logger.debug(text)
-	logger.debug('====================================')
-	node = { 'path' : text , 'idx' : None, 'query': '' , 'select': select }
-	path = query1 = query2 = ''
-	while idx < len(text):
-
-		if nname.match(text[idx]) and state == 'name':	
-			path = path + text[idx]
-			idx+=1
-			continue
-
-		elif text[idx] == '[' and state == 'name': # es un array (excepcion)
-			state = next(states)
-			idx += 1
-
-		if text[idx] == ']':
-			idx+=1
-			continue
-		#cierre	
-		if state == 'name' :
-			state = next(states)
-
-		if state == 'query1':
-			query1 += text[idx]
-			idx+=1
-			continue
-
-		if state == 'query2':
-			query2 += text[idx]
-			idx+=1
-			continue
-
-		idx+=1
-	node['path'] = path
-	logger.debug('query')
-	logger.debug(query1)
-	if query1 != '' and nidx.match(query1): #podria ser indice o query
-		node['idx'] = int(query1)
+	#nname = re.compile(r'\w')
+	#nidx = re.compile(r'\d')
+	f1 = re.compile(r'([\w])*(\[\d+[:{1}\d]*\])*(\[[@\w=>\!<"\']+\])*')
+	if f1.match(text):
+		name, q1,q2,select = extractIndexs(text)
+		logger.info('check')
+		logger.debug({ 'path' : name , 'idx' : q1, 'query': q2 , 'select': select })
+		return { 'path' : name , 'idx' : q1, 'query': q2 , 'select': select }
 	else:
-		if query1 != '':
-			node['query'] = query1
+		raise Exception('Syntax error over: ' + text)
+	
 
-	if query2 != '':
-		node['query'] = query2
-
-	return node
-
+def filterFields(dataset,select):
+	
+	if select is None or select == '' or select == '*' :
+		return dataset
+	res = {}
+	[ res.update({ k : v }) for k,v in dataset.items() if k in select]
+	return res
 
 def executeQuery(query,dataset,select):
 	logger = logging.getLogger("executeQuery")
 	logger.info('ejecutando query')
 	logger.debug(select)
 	
-	def fileterField(dataset,select):
-		if select is None or select == '' or select == '*' :
-			return dataset
-		res = {}
-		[ res.update({ k : v }) for k,v in dataset.items() if k in select]
-		return res
-
-
 	def execOperaciones(oprs,data):
 
 		result = []  
@@ -320,6 +296,7 @@ def executeQuery(query,dataset,select):
 			for dataitem in subset:  
 				logger.debug('loop') 
 				fieldname = op1[1:] if op1[0] == '@' else op2[1:]
+				
 				fieldvalue = dataitem[fieldname]
 				logger.debug(fieldvalue)
 				
@@ -331,17 +308,17 @@ def executeQuery(query,dataset,select):
 					logger.debug(comp)
 					if comp == '==' and value in fieldvalue:
 						logger.debug('IN')
-						result.append(fileterField(dataitem,select))
+						result.append(filterFields(dataitem,select))
 					elif comp == '!=' and value not in fieldvalue:
 						logger.debug('NOT IN')
-						result.append(fileterField(dataitem,select))
+						result.append(filterFields(dataitem,select))
 				elif isinstance(fieldvalue,str):
 					value = op2
 					o = 'fieldvalue' + comp + value
 					logger.debug(o)
 					if eval(o,{'fieldvalue' : fieldvalue}):
 						logger.debug('True')
-						result.append(fileterField(dataitem,select))
+						result.append(filterFields(dataitem,select))
 			
 		return result
 
@@ -382,7 +359,14 @@ def findnode(dataset,nodename):
 		#raise Exception('El dataset debe ser list o un dict')
 	return result
 
-def seekPath(text,query):
+def processPath(text,query):
+
+	def  empty(value):
+		if isinstance(value,str):
+			value = value.rstrip().lstrip()
+			return value == '' or len(value) == 0 or value is None
+		else:
+			return value is None
 
 	logger = logging.getLogger("seekPath")
 
@@ -394,7 +378,14 @@ def seekPath(text,query):
 	nodes = query.split('/')
 
 	if not root:
-		result = findnode(text,nodes[0])
+		logger.debug('Realizando busqueda')
+		result = findnode(text,nodes[0]) 
+		#si son nodos finales
+		isfinal = True
+		for item in result:
+			isfinal = isfinal and (False if isinstance(item,dict) or isinstance(item,list) else True)
+		if isfinal:
+			return result
 	else:
 		result = text.copy()
 
@@ -403,85 +394,118 @@ def seekPath(text,query):
 	#cortar
 	node = []
 	for selectNode in filter(None ,nodes): #text
+
 		logger.debug('Nodo seleccionado: ' + selectNode)
 		nodeQuery = nodeParse(selectNode) #parsea la query
 		#----------- 
 		logger.debug(nodeQuery)
 		logger.debug('----->')
 
-		if nodeQuery['idx'] is not None \
-		   and  nodeQuery['query']=='' \
-		   and nodeQuery['path'] == '' \
-		   and isinstance(result,list):  #TRaeer el nodo
-			result = result[nodeQuery['idx']]
-			continue
-		# si el path es una lista y no tiene query, entonces error
-		if isinstance(result,list) and \
-		    nodeQuery['query'] == '' and \
-		    nodeQuery['idx'] is None:
+		path,selIndex,query,select = \
+		nodeQuery['path'],nodeQuery['idx'],nodeQuery['query'],nodeQuery['select']
+		logger.debug('buscando nodo: ' + path)
+		logger.debug(isinstance(result,list))
+		logger.debug(type(result))
+		if isinstance(result,list):
+			if not empty(path):
+				raise Exception('El nombre de nodo (path) indicado es una lista: ' + path)
 
-			logger.error('Es un lista')
-			logger.error(nodeQuery)
-			logger.error(result)
-			raise Exception('El nodo ' + selectNode + ' es una lista')
-		
-		#Excepciones
-		if nodeQuery['path'] not in result:
-			return {}
-		node = result[nodeQuery['path']]   #se trae el nodo
-		logger.debug(type(node))
-		
-		if nodeQuery['query'] !='':
-			logger.debug('Query')
-			select = nodeQuery['select']
-			r = createProgram(nodeQuery['query'])
-			logger.debug(r)
-			node = executeQuery(r,node, select )
-		elif nodeQuery['select'] is not None:
-			select = nodeQuery['select']
-			if isinstance(node,list):
-				temp = []
-				list(map( lambda item :  [ temp.append({ k: v }) for k,v in item.items() if k in select ], node ))
-				node = temp
-			elif isinstance(node,dict):
-				node =[ { k : v } for k,v in node.items() if k in select ]
-		try:
-			if nodeQuery['idx'] is not None:  #TRaeer el nodo
-				node = node[nodeQuery['idx']]
-		except (IndexError,KeyError) as e:
-			if isinstance(node,list):
-				logger.error('Index ' + str(nodeQuery['idx']) + ' does not exitis in dataset')
-			else:
-				logger.error('The node is not a List or Array, you can not use idex here')
-				logger.error(node.keys())
-			quit()
-		result = node
+			if not empty(selIndex) :
+				logger.debug('recuperando nodo indice: ' + str(selIndex))
+				try:
+					node = result[selIndex]
+					logger.info('Recuperando indice:')
+					node = result[selIndex]
+					#nodo de la lista ya ha sido seleccionado
+					if not empty(path):
+						if path not in result:
+							logger.error('El nodo no existe en la lista')
+							raise Exception('El nodo no existe en la lista: ' + path)
+						node = result[path]
+
+					if not empty(query):
+						r = createProgram(query)
+						logger.debug(r)
+						node = executeQuery(r,node, select )
+
+					result = node
+					continue
+				except (IndexError,KeyError) as e:
+					if isinstance(node,list):
+						logger.error('Index ' + str(selIndex) + ' does not exitis in dataset')
+					else:
+						logger.error('The node is not a List or Array, you can not use idex here')
+						logger.error(node.keys())
+					quit()
+			elif empty(selIndex) and not empty(query):
+				r = createProgram(query)
+				logger.debug(r)
+				node = executeQuery(r,result, select )
+				result = node
+				continue
+
+		else:
+			#Excepciones
+			if path not in result:
+				logger.debug(path)
+				logger.debug(result)
+				logger.warning('nodo no encontrado:' + path)
+				return {}
+
+			node = result[path]  if not isinstance(result,list) else result #se trae el nodo
+			logger.debug(type(node))
+			#logger.debug(node)
+			if not empty(selIndex):
+				node = node[selIndex]
+
+			if not empty(query):  
+				logger.debug('Query')
+				r = createProgram(query)
+				logger.debug(r)
+				node = executeQuery(r,node, select )
+			elif not empty(select): #nodeQuery['select'] is not None:
+				if isinstance(node,list):
+					temp = []
+					list(map( lambda item :  [ temp.append({ k: v }) for k,v in item.items() if k in select ], node ))
+					node = temp
+				elif isinstance(node,dict):
+					node =[ { k : v } for k,v in node.items() if k in select ]
+
+			result = node
 
 		
 	return result
 
 
 def jsonquery(filename, path, _print = True):
+	validation = re.compile(r'(/)*(/{0,1}\w+)*(\[\d+[:{1}\d+]*\])*(/{0,1}\[s*[@\s\w=!<>\'"]+\s*\])*(\{[\w+"\',]+\})*')
 	data = ''
-	with open(filename,'r') as f:
-		data = json.load(f)
-	res = seekPath(data,path)
-	if _print:
-		pp.pprint(res)
-	return res
+	if True:#validation.fullmatch(path):
+		with open(filename,'r') as f:
+			data = json.load(f)
+			res = processPath(data,path)
+			if _print:
+				pp.pprint(res)
+			return res
+	else:
+		raise Exception('Invalid Synax: ' + path)
 
 
 class JsonQuery(object):
+	def __init__(self,filepath, debug = logging.ERROR):
+		logging.basicConfig(level=debug)
 
-	def __init__(self,query,dataset):
-		self._query = query
-		self._dataset = dataset
+		self._filepath = filepath
+		
 
-	def execute():
-		res = seekPath(self._dataset,self._query)
-		return res
+	def execute(self,query='/'):
+		with open(self._filepath,'r') as f:
+			self._dataset = json.load(f)
+			return processPath(self._dataset,query)
 
 
+
+#print( extractIndexs('[@id=="0001"]'))
 
 
 

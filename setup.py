@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jsonquery-sebek_msd",
-    version="0.0.3",
+    version="0.0.4",
     author="Marcelo Silva",
     author_email="msilva@arkhotech.com",
     description="Prototype of query path over JSON files",
@@ -14,9 +14,14 @@ setuptools.setup(
     url="https://github.com/arkhotech/json_query.git",
     packages=setuptools.find_packages(),
     classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "Development Status :: 2 - Pre-Alpha",
         "Operating System :: OS Independent",
+        "License :: OSI Approved :: GNU General Public License (GPL)",
+        "Intended Audience :: Developers",
+        "Natural Language :: Spanish",
+        "Programming Language :: Python :: 3.7",
+        "Topic :: Software Development :: Libraries :: Python Modules"
+
     ],
     python_requires='>=3.6',
 )
