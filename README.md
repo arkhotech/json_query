@@ -15,19 +15,42 @@ Install application from GitHub using git client:
 git clone https://gitlab.com/arkhotech/json_query.git
 ```
 
+Install aplication from Pypi.org:
+
+```bash
+pip install arkho-jsonquery
+```
+
+
 Once the repository is cloned we can use the library adding the following import:
 
 ```python
 from jsonquery import JsonQuery
 ```
-The library have two ways to use it, one way is usgin the class **JsonQuery. This class takes 2 parameters: the query and the json data on 'dict' object type. Ej.
+The library have two ways to use it, one way is usgin the class **JsonQuery**. This class takes 1 parameters: file path that contains the json 
+data.
 
 ```python
-query = JsonQuery(query,data)
+query = JsonQuery(filepath)
+```
+
+Once you has initialized the object, you can make the query over the JSON data loaded from the file (that is made when you init the object) using the **execute** method:
+
+Example:
+
+```python
+
+query = JsonQuery('path/to/file.json')
+
+query.execute('/')
+
+#the result it's an dict or list with the result
+
 ```
 
 * **query**: Query applied over the data (see syntax).
-* **data**:  'dict' object that contains the json data.
+
+You can use a dict objet to if you don't want to use a file.
 
 Example:
 
@@ -39,8 +62,8 @@ data = None
 with open('test.json','r') as input:
    data = json.load(input)
 
-jsonquery = JsonQuery("/a",data)
-retval = jsonquery.execute()
+jsonquery = JsonQuery(dataset=data)
+retval = jsonquery.execute('/items')
 
 print(retval)
 ```
@@ -65,7 +88,7 @@ The sytanx used for the query have got 3 parts:
 
 ### PATH
 
-The path represents every level on the Json in a single line separated trough the slash ('/') symbol. Ex:
+The path represents every level in the Json on a single line, separated trough the slash ('/') symbol. Ex:
 
 ```json
 {

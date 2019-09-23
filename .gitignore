@@ -3,3 +3,5 @@ dist
 build
 jsonquery_sebek_msd.egg-info
 *.pyc
+.idea
+arkho_jsonquery.egg-info

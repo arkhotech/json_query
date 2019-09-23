@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="jsonquery-sebek_msd",
+    name="arkho-jsonquery",
     version="0.0.4",
     author="Marcelo Silva",
     author_email="msilva@arkhotech.com",
