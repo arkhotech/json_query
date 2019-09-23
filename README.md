@@ -1,4 +1,4 @@
-<img src="https://www.arkho.tech/wp-content/uploads/2019/06/Logo_Cloudready.jpg" width="400px"/>
+<img src="https://arkho.tech/wp-content/uploads/2019/08/logo.png" width="400px"/>
 
 # JSON Query
 
