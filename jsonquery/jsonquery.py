@@ -63,7 +63,7 @@ def check(text):
 	state1 = States(['operando','comparador','operando','logical','close'])
 	state = next(state1)
 	logger.debug(state)
-	idopracion = 1
+
 	while True:
 		
 		if state == 'close' or len(text) == idx:
@@ -193,7 +193,6 @@ def createProgram(query):
 	grps = groups(query)
 	logger = logging.getLogger("test")
 	group_plan = {}
-	newplan = []
 	
 
 	for key,value in grps.items():
@@ -478,7 +477,7 @@ def processPath(text,query):
 
 
 def jsonquery(filename, path, _print = True):
-	validation = re.compile(r'(/)*(/{0,1}\w+)*(\[\d+[:{1}\d+]*\])*(/{0,1}\[s*[@\s\w=!<>\'"]+\s*\])*(\{[\w+"\',]+\})*')
+	#validation = re.compile(r'(/)*(/{0,1}\w+)*(\[\d+[:{1}\d+]*\])*(/{0,1}\[s*[@\s\w=!<>\'"]+\s*\])*(\{[\w+"\',]+\})*')
 	data = ''
 	if True:#validation.fullmatch(path):
 		with open(filename,'r') as f:

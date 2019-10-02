@@ -7,6 +7,11 @@
 #### Language:  Python
 
 
+### Objective
+
+This library aims to doing queries over json structured data easily. The syntax it's based over a XPath subset notation with some especific variations by to easy Python implementation.
+
+
 ### Setup
 
 Install application from GitHub using git client:

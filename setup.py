@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="arkho-jsonquery",
-    version="0.0.4",
+    version="0.0.5",
     author="Marcelo Silva",
     author_email="msilva@arkhotech.com",
     description="Prototype of query path over JSON files",
